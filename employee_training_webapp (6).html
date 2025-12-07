@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>قاعدة بيانات الورش التدريبية</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    body { font-family: sans-serif; padding: 20px; background: #f5f5f5; }
+    h1 { text-align: center; }
+    .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 20px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    table, th, td { border: 1px solid #ccc; }
+    th, td { padding: 10px; text-align: center; }
+    input, select { padding: 8px; border-radius: 8px; border: 1px solid #aaa; width: 100%; box-sizing: border-box }
+    button { padding: 8px 14px; border: none; border-radius: 8px; background: #007bff; color: white; cursor: pointer; }
+    button:hover { background: #0056b3; }
+    .del-btn { background: #d9534f; }
+    .del-btn:hover { background: #b52b27; }
+    .small-btn { padding: 6px 10px; border-radius: 6px; }
+    ul { text-align: right; padding-right: 10px; }
+  </style>
+</head>
+<body>
+
+  <h1>برنامج قراءة بيانات الورش التدريبية (Read-Only)</h1>
+
+  <!-- بحث الموظفين -->
+  <div class="card">
+    <h2>بحث الموظفين</h2>
+    <input type="text" id="searchInput" placeholder="أدخل اسم الموظف للبحث" oninput="searchEmployee()" />
+  </div>
+
+  <!-- عرض الموظفين -->
+  <div class="card">
+    <h2>قائمة الموظفين</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>الاسم</th>
+          <th>عدد الورش</th>
+          <th>تفاصيل الورش</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
+
+  <script>
+    // قراءة البيانات من LocalStorage فقط
+    let employees = JSON.parse(localStorage.getItem('employeesData') || '[]');
+
+    function renderTable(filtered=employees) {
+      const body = document.getElementById("tableBody");
+      body.innerHTML = "";
+      filtered.forEach(emp => {
+        let list = "<ul>";
+        emp.workshops.forEach(w => list += `<li>${w.name} — ${w.start} إلى ${w.end}</li>`);
+        list += "</ul>";
+        const row = `<tr>
+            <td>${emp.name}</td>
+            <td>${emp.workshops.length}</td>
+            <td>${list}</td>
+        </tr>`;
+        body.innerHTML += row;
+      });
+    }
+
+    function searchEmployee() {
+      const query = document.getElementById("searchInput").value.trim().toLowerCase();
+      const filtered = employees.filter(e => e.name.toLowerCase().includes(query));
+      renderTable(filtered);
+    }
+
+    // تحديث العرض عند فتح الصفحة
+    renderTable();
+  </script>
+
+</body>
+</html>
