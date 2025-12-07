@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>قاعدة بيانات الورش التدريبية</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    body { font-family: sans-serif; padding: 20px; background: #f5f5f5; }
+    h1 { text-align: center; }
+    .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 20px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    table, th, td { border: 1px solid #ccc; }
+    th, td { padding: 10px; text-align: center; }
+    input, select { padding: 8px; border-radius: 8px; border: 1px solid #aaa; width: 100%; box-sizing: border-box }
+    button { padding: 8px 14px; border: none; border-radius: 8px; background: #007bff; color: white; cursor: pointer; }
+    button:hover { background: #0056b3; }
+    .del-btn { background: #d9534f; }
+    .del-btn:hover { background: #b52b27; }
+    .small-btn { padding: 6px 10px; border-radius: 6px; }
+    ul { text-align: right; padding-right: 10px; }
+    .actions { display:flex; gap:8px; justify-content:center }
+  </style>
+</head>
+<body>
+
+  <h1>برنامج إدارة حضور الورش التدريبية</h1>
+
+  <!-- إضافة موظف -->
+  <div class="card">
+    <h2>إضافة موظف جديد</h2>
+    <label>اسم الموظف</label>
+    <input type="text" id="empName" placeholder="أدخل اسم الموظف" />
+    <br /><br />
+
+    <h3>إضافة ورشة مؤقتًا قبل حفظ الموظف</h3>
+    <label>اسم الورشة</label>
+    <input type="text" id="workshopName" placeholder="مثال: أساسيات صيانة الطرق" />
+    <br /><br />
+    <label>تاريخ البداية</label>
+    <input type="date" id="workshopStart" />
+    <br /><br />
+    <label>تاريخ النهاية</label>
+    <input type="date" id="workshopEnd" />
+    <br /><br />
+    <button onclick="addWorkshop()">إضافة ورشة (من — إلى)</button>
+
+    <h4>الورش المضافة مؤقتاً:</h4>
+    <ul id="tempList"></ul>
+
+    <button onclick="addEmployee()">حفظ الموظف</button>
+  </div>
+
+  <!-- بحث الموظفين -->
+  <div class="card">
+    <h2>بحث الموظفين</h2>
+    <input type="text" id="searchInput" placeholder="أدخل اسم الموظف للبحث" oninput="searchEmployee()" />
+  </div>
+
+  <!-- عرض الموظفين -->
+  <div class="card">
+    <h2>قائمة الموظفين</h2>
+    <button onclick="exportToExcel()" style="margin-bottom:15px;">تصدير إلى Excel</button>
+    <table>
+      <thead>
+        <tr>
+          <th>الاسم</th>
+          <th>عدد الورش</th>
+          <th>تفاصيل الورش</th>
+          <th>إضافة ورشة</th>
+          <th>حذف</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
+
+  <script>
+    let employees = [];
+    let tempWorkshops = [];
+
+    function addWorkshop() {
+      const wName = document.getElementById("workshopName").value.trim();
+      const wStart = document.getElementById("workshopStart").value;
+      const wEnd = document.getElementById("workshopEnd").value;
+      if (!wName || !wStart || !wEnd) { alert("يرجى تعبئة جميع بيانات الورشة"); return; }
+      if (wEnd < wStart) { alert("تاريخ النهاية لا يمكن أن يكون قبل البداية"); return; }
+      tempWorkshops.push({ name: wName, start: wStart, end: wEnd });
+      renderTemp();
+      document.getElementById("workshopName").value = "";
+      document.getElementById("workshopStart").value = "";
+      document.getElementById("workshopEnd").value = "";
+    }
+
+    function renderTemp() {
+      const ul = document.getElementById("tempList");
+      ul.innerHTML = "";
+      tempWorkshops.forEach((w, i) => {
+        ul.innerHTML += `<li>${w.name} — ${w.start} إلى ${w.end} <button class='small-btn' onclick='removeTemp(${i})'>حذف</button></li>`;
+      });
+    }
+
+    function removeTemp(i) { tempWorkshops.splice(i,1); renderTemp(); }
+
+    function addEmployee() {
+      const name = document.getElementById("empName").value.trim();
+      if (!name) { alert("يرجى إدخال اسم الموظف"); return; }
+      employees.push({ name, workshops: [...tempWorkshops] });
+      tempWorkshops = [];
+      renderTemp();
+      renderTable();
+      document.getElementById("empName").value = "";
+    }
+
+    function deleteEmployee(index) {
+      if (confirm("هل أنت متأكد من حذف الموظف؟")) {
+        employees.splice(index, 1);
+        renderTable();
+      }
+    }
+
+    function addWorkshopToEmployee(index) {
+      const wName = prompt("أدخل اسم الورشة:");
+      if (!wName) return;
+      const wStart = prompt("أدخل تاريخ البداية (YYYY-MM-DD):");
+      if (!wStart) return;
+      const wEnd = prompt("أدخل تاريخ النهاية (YYYY-MM-DD):");
+      if (!wEnd) return;
+      if (wEnd < wStart) { alert('تاريخ النهاية لا يمكن أن يكون قبل البداية'); return; }
+      employees[index].workshops.push({ name: wName, start: wStart, end: wEnd });
+      renderTable();
+    }
+
+    function renderTable(filtered=employees) {
+      const body = document.getElementById("tableBody");
+      body.innerHTML = "";
+      filtered.forEach((emp, i) => {
+        let list = "<ul>";
+        emp.workshops.forEach(w => list += `<li>${w.name} — ${w.start} إلى ${w.end}</li>`);
+        list += "</ul>";
+        const row = `<tr>
+            <td>${emp.name}</td>
+            <td>${emp.workshops.length}</td>
+            <td>${list}</td>
+            <td><button class='small-btn' onclick='addWorkshopToEmployee(${i})'>+</button></td>
+            <td><button class='del-btn' onclick='deleteEmployee(${i})'>حذف</button></td>
+        </tr>`;
+        body.innerHTML += row;
+      });
+    }
+
+    function searchEmployee() {
+      const query = document.getElementById("searchInput").value.trim().toLowerCase();
+      const filtered = employees.filter(e => e.name.toLowerCase().includes(query));
+      renderTable(filtered);
+    }
+
+    function exportToExcel() {
+      if (employees.length === 0) { alert("لا توجد بيانات للتصدير"); return; }
+      const worksheetData = [];
+      employees.forEach(e => {
+        if (e.workshops.length === 0) {
+          worksheetData.push({"اسم الموظف": e.name, "اسم الورشة":"", "تاريخ البداية":"", "تاريخ النهاية":""});
+        } else {
+          e.workshops.forEach(w => {
+            worksheetData.push({"اسم الموظف": e.name, "اسم الورشة": w.name, "تاريخ البداية": w.start, "تاريخ النهاية": w.end});
+          });
+        }
+      });
+      const worksheet = XLSX.utils.json_to_sheet(worksheetData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "الورش");
+      XLSX.writeFile(workbook, "training_data.xlsx");
+    }
+  </script>
+
+</body>
+</html>
